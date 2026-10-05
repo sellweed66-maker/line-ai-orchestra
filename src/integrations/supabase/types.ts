@@ -14,7 +14,329 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_providers: {
+        Row: {
+          enabled: boolean
+          has_key: boolean
+          id: string
+          key_hint: string | null
+          last_error: string | null
+          last_status: string
+          last_used_at: string | null
+          model: string
+          priority: number
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          has_key?: boolean
+          id?: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_status?: string
+          last_used_at?: string | null
+          model: string
+          priority?: number
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          has_key?: boolean
+          id?: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_status?: string
+          last_used_at?: string | null
+          model?: string
+          priority?: number
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          logo_icon: string
+          logo_type: string
+          logo_url: string | null
+          primary_color: string
+          store_name: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          logo_icon?: string
+          logo_type?: string
+          logo_url?: string | null
+          primary_color?: string
+          store_name?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          logo_icon?: string
+          logo_type?: string
+          logo_url?: string | null
+          primary_color?: string
+          store_name?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          meta: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role: string
+          thread_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          meta?: Json
+          role?: string
+          thread_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "chat_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_threads: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      command_logs: {
+        Row: {
+          action: string | null
+          app_name: string | null
+          command: string
+          created_at: string
+          id: string
+          provider: string | null
+          result: string | null
+          source: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action?: string | null
+          app_name?: string | null
+          command: string
+          created_at?: string
+          id?: string
+          provider?: string | null
+          result?: string | null
+          source?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action?: string | null
+          app_name?: string | null
+          command?: string
+          created_at?: string
+          id?: string
+          provider?: string | null
+          result?: string | null
+          source?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      line_settings: {
+        Row: {
+          has_secret: boolean
+          has_token: boolean
+          owner_line_ids: string[]
+          target_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          has_secret?: boolean
+          has_token?: boolean
+          owner_line_ids?: string[]
+          target_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          has_secret?: boolean
+          has_token?: boolean
+          owner_line_ids?: string[]
+          target_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pending_actions: {
+        Row: {
+          action: string
+          app_id: string | null
+          app_name: string | null
+          code: string
+          created_at: string
+          id: string
+          params: Json
+          result: string | null
+          source: string
+          status: string
+          summary: string | null
+          thread_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          app_id?: string | null
+          app_name?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          params?: Json
+          result?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          thread_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          app_id?: string | null
+          app_name?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          params?: Json
+          result?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          thread_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      satellite_apps: {
+        Row: {
+          base_url: string
+          created_at: string
+          has_key: boolean
+          id: string
+          last_checked_at: string | null
+          last_synced_at: string | null
+          name: string
+          status: string
+          tools: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_url: string
+          created_at?: string
+          has_key?: boolean
+          id?: string
+          last_checked_at?: string | null
+          last_synced_at?: string | null
+          name: string
+          status?: string
+          tools?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          has_key?: boolean
+          id?: string
+          last_checked_at?: string | null
+          last_synced_at?: string | null
+          name?: string
+          status?: string
+          tools?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      secret_store: {
+        Row: {
+          id: string
+          kind: string
+          ref: string
+          updated_at: string
+          user_id: string
+          value: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          ref?: string
+          updated_at?: string
+          user_id: string
+          value: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          ref?: string
+          updated_at?: string
+          user_id?: string
+          value?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
