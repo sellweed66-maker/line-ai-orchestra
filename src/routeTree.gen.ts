@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicLineUserIdRouteImport } from './routes/api/public/line.$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLineUserIdRoute = ApiPublicLineUserIdRouteImport.update({
+  id: '/api/public/line/$userId',
+  path: '/api/public/line/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/line/$userId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/line/$userId'
+  id: '__root__' | '/' | '/api/public/line/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicLineUserIdRoute: typeof ApiPublicLineUserIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/line/$userId': {
+      id: '/api/public/line/$userId'
+      path: '/api/public/line/$userId'
+      fullPath: '/api/public/line/$userId'
+      preLoaderRoute: typeof ApiPublicLineUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicLineUserIdRoute: ApiPublicLineUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
