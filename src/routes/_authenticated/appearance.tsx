@@ -40,7 +40,7 @@ function AppearancePage() {
     const { error } = await supabase.from("app_settings").update({
       store_name: s.store_name, primary_color: s.primary_color, theme: s.theme, logo_type: s.logo_type, logo_icon: s.logo_icon, logo_url: s.logo_url,
     }).eq("user_id", user.id);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("บันทึกแล้ว");
     qc.invalidateQueries({ queryKey: ["app_settings"] });
   };
