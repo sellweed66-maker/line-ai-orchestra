@@ -53,7 +53,7 @@ export const saveProvider = createServerFn({ method: "POST" })
     }
     const { error } = await context.supabase
       .from("ai_providers")
-      .update(patch)
+      .update(patch as never)
       .eq("user_id", context.userId)
       .eq("provider", data.provider);
     if (error) throw new Error(error.message);
@@ -109,7 +109,7 @@ export const saveApp = createServerFn({ method: "POST" })
     if (data.apiKey?.trim()) row.has_key = true;
     let id = data.id;
     if (id) {
-      const { error } = await context.supabase.from("satellite_apps").update(row).eq("id", id).eq("user_id", context.userId);
+      const { error } = await context.supabase.from("satellite_apps").update(row as never).eq("id", id).eq("user_id", context.userId);
       if (error) throw new Error(error.message);
     } else {
       const { data: ins, error } = await context.supabase
