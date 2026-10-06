@@ -1,9 +1,22 @@
 // AI Rotation & Fallback Engine: tries providers in priority order and
 // falls through to the next one on any error (429, quota, 5xx, bad key...).
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import type { LanguageModel } from "ai";
+import { wrapLanguageModel, type LanguageModel, type LanguageModelMiddleware } from "ai";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { getSecret, type Db } from "./secrets.server";
+
+// Some providers (e.g. Groq) reject `reasoning_content` on assistant messages
+// that the SDK resends during multi-step tool calls — strip reasoning parts.
+const stripReasoning: LanguageModelMiddleware = {
+  transformParams: async ({ params }) => ({
+    ...params,
+    prompt: params.prompt.map((m) =>
+      m.role === "assistant" && Array.isArray(m.content)
+        ? { ...m, content: m.content.filter((c) => c.type !== "reasoning") }
+        : m,
+    ),
+  }),
+};
 
 export function makeModel(provider: ProviderId, apiKey: string, model: string): LanguageModel {
   const cfg = PROVIDERS[provider];
@@ -13,7 +26,7 @@ export function makeModel(provider: ProviderId, apiKey: string, model: string): 
     apiKey,
     headers: provider === "openrouter" ? { "HTTP-Referer": "https://lovable.app", "X-Title": "AI Hub" } : undefined,
   });
-  return p.chatModel(model || cfg.defaultModel);
+  return wrapLanguageModel({ model: p.chatModel(model || cfg.defaultModel), middleware: stripReasoning });
 }
 
 export function describeAiError(e: unknown): string {
