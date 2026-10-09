@@ -10,7 +10,8 @@ export const Route = createFileRoute("/api/public/line/$userId")({
         if (!/^[0-9a-f-]{36}$/i.test(userId)) return new Response("not found", { status: 404 });
         const body = await request.text();
         const { getAdmin, getSecret } = await import("@/lib/server/secrets.server");
-        const { verifyLineSignature, lineReply, linePush } = await import("@/lib/server/line.server");
+        const { verifyLineSignature, lineReplyMessages, linePushMessages, textMsg } = await import("@/lib/server/line.server");
+        const { quickReply, QUICK_COMMANDS } = await import("@/lib/line-flex");
         const db = await getAdmin();
         const secret = await getSecret(db, userId, "line", "secret");
         if (!secret) return new Response("not configured", { status: 404 });
@@ -34,9 +35,11 @@ export const Route = createFileRoute("/api/public/line/$userId")({
           const text = (ev.message.text ?? "").trim();
           const sender = ev.source?.userId ?? "";
           const chatId = ev.source?.groupId ?? ev.source?.roomId ?? sender;
-          const respond = async (msg: string) => {
-            const sent = ev.replyToken ? await lineReply(token, ev.replyToken, msg) : false;
-            if (!sent && chatId) await linePush(token, chatId, msg).catch(() => undefined);
+          const defaultQR = quickReply([...QUICK_COMMANDS]);
+          const respond = async (msg: string, qr: unknown = defaultQR) => {
+            const messages = [textMsg(msg, qr)];
+            const sent = ev.replyToken ? await lineReplyMessages(token, ev.replyToken, messages) : false;
+            if (!sent && chatId) await linePushMessages(token, chatId, messages).catch(() => undefined);
           };
 
           if (/^(myid|ไอดี)$/i.test(text)) {
