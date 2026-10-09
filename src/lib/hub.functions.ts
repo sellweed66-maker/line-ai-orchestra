@@ -326,3 +326,20 @@ export const sendLineTest = createServerFn({ method: "POST" })
       return { ok: false, message: (e as Error).message };
     }
   });
+
+/* ---------- Bill ingest key ---------- */
+
+export const getIngestKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ rotate: z.boolean().optional() }))
+  .handler(async ({ data, context }) => {
+    const { getAdmin, getSecret, setSecret } = await import("@/lib/server/secrets.server");
+    const admin = await getAdmin();
+    let key = await getSecret(admin, context.userId, "ingest", "bill");
+    if (!key || data.rotate) {
+      const bytes = crypto.getRandomValues(new Uint8Array(24));
+      key = "hub_" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+      await setSecret(admin, context.userId, "ingest", "bill", key);
+    }
+    return { key };
+  });

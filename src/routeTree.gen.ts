@@ -20,6 +20,7 @@ import { Route as AuthenticatedLineRouteImport } from './routes/_authenticated/l
 import { Route as AuthenticatedLogsRouteImport } from './routes/_authenticated/logs'
 import { Route as AuthenticatedChatIndexRouteImport } from './routes/_authenticated/chat.index'
 import { Route as AuthenticatedChatThreadIdRouteImport } from './routes/_authenticated/chat.$threadId'
+import { Route as ApiPublicBillUserIdRouteImport } from './routes/api/public/bill.$userId'
 import { Route as ApiPublicLineUserIdRouteImport } from './routes/api/public/line.$userId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -77,6 +78,11 @@ const AuthenticatedChatThreadIdRoute =
     path: '/$threadId',
     getParentRoute: () => AuthenticatedChatRoute,
   } as any)
+const ApiPublicBillUserIdRoute = ApiPublicBillUserIdRouteImport.update({
+  id: '/api/public/bill/$userId',
+  path: '/api/public/bill/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLineUserIdRoute = ApiPublicLineUserIdRouteImport.update({
   id: '/api/public/line/$userId',
   path: '/api/public/line/$userId',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/logs': typeof AuthenticatedLogsRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/public/bill/$userId': typeof ApiPublicBillUserIdRoute
   '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRoutesByTo {
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/logs': typeof AuthenticatedLogsRoute
   '/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/chat': typeof AuthenticatedChatIndexRoute
+  '/api/public/bill/$userId': typeof ApiPublicBillUserIdRoute
   '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRoutesById {
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/logs': typeof AuthenticatedLogsRoute
   '/_authenticated/chat/$threadId': typeof AuthenticatedChatThreadIdRoute
   '/_authenticated/chat/': typeof AuthenticatedChatIndexRoute
+  '/api/public/bill/$userId': typeof ApiPublicBillUserIdRoute
   '/api/public/line/$userId': typeof ApiPublicLineUserIdRoute
 }
 export interface FileRouteTypes {
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/chat/$threadId'
     | '/chat/'
+    | '/api/public/bill/$userId'
     | '/api/public/line/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/chat/$threadId'
     | '/chat'
+    | '/api/public/bill/$userId'
     | '/api/public/line/$userId'
   id:
     | '__root__'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/logs'
     | '/_authenticated/chat/$threadId'
     | '/_authenticated/chat/'
+    | '/api/public/bill/$userId'
     | '/api/public/line/$userId'
   fileRoutesById: FileRoutesById
 }
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicBillUserIdRoute: typeof ApiPublicBillUserIdRoute
   ApiPublicLineUserIdRoute: typeof ApiPublicLineUserIdRoute
 }
 
@@ -251,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatThreadIdRouteImport
       parentRoute: typeof AuthenticatedChatRoute
     }
+    '/api/public/bill/$userId': {
+      id: '/api/public/bill/$userId'
+      path: '/api/public/bill/$userId'
+      fullPath: '/api/public/bill/$userId'
+      preLoaderRoute: typeof ApiPublicBillUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/line/$userId': {
       id: '/api/public/line/$userId'
       path: '/api/public/line/$userId'
@@ -299,6 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicBillUserIdRoute: ApiPublicBillUserIdRoute,
   ApiPublicLineUserIdRoute: ApiPublicLineUserIdRoute,
 }
 export const routeTree = rootRouteImport
