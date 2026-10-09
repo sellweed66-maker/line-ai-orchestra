@@ -14,22 +14,43 @@ export async function verifyLineSignature(secret: string, body: string, signatur
   return diff === 0;
 }
 
-const chunk = (t: string) => [{ type: "text", text: t.slice(0, 4900) || "-" }];
+export type LineMessage = Record<string, unknown>;
+export const textMsg = (t: string, quickReply?: unknown): LineMessage => ({
+  type: "text",
+  text: t.slice(0, 4900) || "-",
+  ...(quickReply ? { quickReply } : {}),
+});
 
-export async function lineReply(token: string, replyToken: string, text: string) {
-  const res = await fetch("https://api.line.me/v2/bot/message/reply", {
+async function call(path: "reply" | "push", token: string, payload: Record<string, unknown>) {
+  const res = await fetch(`https://api.line.me/v2/bot/message/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ replyToken, messages: chunk(text) }),
-  });
-  return res.ok;
-}
-
-export async function linePush(token: string, to: string, text: string) {
-  const res = await fetch("https://api.line.me/v2/bot/message/push", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ to, messages: chunk(text) }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(`LINE ตอบกลับ ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+export async function lineReplyMessages(token: string, replyToken: string, messages: LineMessage[]) {
+  try {
+    await call("reply", token, { replyToken, messages: messages.slice(0, 5) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const linePushMessages = (token: string, to: string, messages: LineMessage[]) =>
+  call("push", token, { to, messages: messages.slice(0, 5) });
+
+export const lineReply = (token: string, replyToken: string, text: string) => lineReplyMessages(token, replyToken, [textMsg(text)]);
+export const linePush = (token: string, to: string, text: string) => linePushMessages(token, to, [textMsg(text)]);
+
+/** Pushes a flex card; if LINE rejects the flex payload, falls back to plain text. */
+export async function linePushFlex(token: string, to: string, flex: LineMessage, fallbackText: string) {
+  try {
+    await linePushMessages(token, to, [flex]);
+  } catch (e) {
+    if (/\b(400)\b/.test((e as Error).message)) await linePush(token, to, fallbackText);
+    else throw e;
+  }
 }
