@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/line/$userId")({
               status: "denied",
               result: `ปฏิเสธ: ${sender} ไม่อยู่ในรายชื่อที่อนุญาต`,
             });
-            if (!ev.source?.groupId) await respond("⛔ คุณไม่มีสิทธิ์สั่งงานระบบนี้");
+            if (!ev.source?.groupId) await respond("⛔ คุณไม่มีสิทธิ์สั่งงานระบบนี้", null);
             continue;
           }
 
@@ -70,9 +70,17 @@ export const Route = createFileRoute("/api/public/line/$userId")({
             const r = await runAgent({ db, userId, source: "line", command: text, history: [] });
             let msg = r.text;
             for (const p of r.pendings) {
-              msg += `\n\n⚠️ คำสั่งเสี่ยง: ${p.action} (${p.app_name})\nพิมพ์ "ยืนยัน ${p.code}" เพื่อดำเนินการ\nหรือ "ยกเลิก ${p.code}"`;
+              msg += `\n\n⚠️ คำสั่งเสี่ยง: ${p.action} (${p.app_name})\nกดปุ่มด้านล่าง หรือพิมพ์ "ยืนยัน ${p.code}" / "ยกเลิก ${p.code}"`;
             }
-            await respond(msg);
+            const qr = r.pendings.length
+              ? quickReply(
+                  r.pendings.flatMap((p) => [
+                    { label: `✅ ยืนยัน ${p.code}`, text: `ยืนยัน ${p.code}` },
+                    { label: `✖️ ยกเลิก ${p.code}`, text: `ยกเลิก ${p.code}` },
+                  ]),
+                )
+              : defaultQR;
+            await respond(msg, qr);
           } catch (e) {
             await respond(`⚠️ ${(e as Error).message}`);
           }
