@@ -4,8 +4,9 @@ import { dynamicTool, generateText, jsonSchema, stepCountIs, type ModelMessage }
 import { runWithFallback, type Attempt } from "./ai-engine.server";
 import { execTool, isRisky, type SatTool } from "./satellite.server";
 import { getSecret, type Db } from "./secrets.server";
-import { linePush } from "./line.server";
+import { linePushFlex } from "./line.server";
 import { formatReport, type ReportLine } from "@/lib/report-format";
+import { buildReceiptFlex } from "@/lib/line-flex";
 
 export type ToolTrace = { name: string; app?: string; action: string; ok: boolean; output: string; pendingId?: string };
 export type AgentResult = {
@@ -57,7 +58,7 @@ export async function runAgent(opts: {
   const { db, userId, source } = opts;
   const [{ data: apps }, { data: settings }, { data: line }] = await Promise.all([
     db.from("satellite_apps").select("*").eq("user_id", userId),
-    db.from("app_settings").select("store_name").eq("user_id", userId).maybeSingle(),
+    db.from("app_settings").select("store_name, primary_color").eq("user_id", userId).maybeSingle(),
     db.from("line_settings").select("*").eq("user_id", userId).maybeSingle(),
   ]);
   const storeName = (settings?.store_name as string) ?? "ร้านของฉัน";
@@ -151,7 +152,12 @@ export async function runAgent(opts: {
         if (!token || !to) output = "ยังไม่ได้ตั้งค่า LINE (Token หรือ Group/User ID)";
         else {
           try {
-            await linePush(token, to, formatReport({ ...i, storeName }));
+            await linePushFlex(
+              token,
+              to,
+              buildReceiptFlex({ title: i.title, storeName, lines: i.lines, total: i.total, note: i.note, color: settings?.primary_color as string | undefined }),
+              formatReport({ ...i, storeName }),
+            );
             ok = true;
             output = "ส่งเข้า LINE แล้ว";
           } catch (e) {

@@ -10,7 +10,8 @@ export const Route = createFileRoute("/api/public/line/$userId")({
         if (!/^[0-9a-f-]{36}$/i.test(userId)) return new Response("not found", { status: 404 });
         const body = await request.text();
         const { getAdmin, getSecret } = await import("@/lib/server/secrets.server");
-        const { verifyLineSignature, lineReply, linePush } = await import("@/lib/server/line.server");
+        const { verifyLineSignature, lineReplyMessages, linePushMessages, textMsg } = await import("@/lib/server/line.server");
+        const { quickReply, QUICK_COMMANDS } = await import("@/lib/line-flex");
         const db = await getAdmin();
         const secret = await getSecret(db, userId, "line", "secret");
         if (!secret) return new Response("not configured", { status: 404 });
@@ -34,9 +35,11 @@ export const Route = createFileRoute("/api/public/line/$userId")({
           const text = (ev.message.text ?? "").trim();
           const sender = ev.source?.userId ?? "";
           const chatId = ev.source?.groupId ?? ev.source?.roomId ?? sender;
-          const respond = async (msg: string) => {
-            const sent = ev.replyToken ? await lineReply(token, ev.replyToken, msg) : false;
-            if (!sent && chatId) await linePush(token, chatId, msg).catch(() => undefined);
+          const defaultQR = quickReply([...QUICK_COMMANDS]);
+          const respond = async (msg: string, qr: unknown = defaultQR) => {
+            const messages = [textMsg(msg, qr)];
+            const sent = ev.replyToken ? await lineReplyMessages(token, ev.replyToken, messages) : false;
+            if (!sent && chatId) await linePushMessages(token, chatId, messages).catch(() => undefined);
           };
 
           if (/^(myid|ไอดี)$/i.test(text)) {
@@ -51,7 +54,7 @@ export const Route = createFileRoute("/api/public/line/$userId")({
               status: "denied",
               result: `ปฏิเสธ: ${sender} ไม่อยู่ในรายชื่อที่อนุญาต`,
             });
-            if (!ev.source?.groupId) await respond("⛔ คุณไม่มีสิทธิ์สั่งงานระบบนี้");
+            if (!ev.source?.groupId) await respond("⛔ คุณไม่มีสิทธิ์สั่งงานระบบนี้", null);
             continue;
           }
 
@@ -67,9 +70,17 @@ export const Route = createFileRoute("/api/public/line/$userId")({
             const r = await runAgent({ db, userId, source: "line", command: text, history: [] });
             let msg = r.text;
             for (const p of r.pendings) {
-              msg += `\n\n⚠️ คำสั่งเสี่ยง: ${p.action} (${p.app_name})\nพิมพ์ "ยืนยัน ${p.code}" เพื่อดำเนินการ\nหรือ "ยกเลิก ${p.code}"`;
+              msg += `\n\n⚠️ คำสั่งเสี่ยง: ${p.action} (${p.app_name})\nกดปุ่มด้านล่าง หรือพิมพ์ "ยืนยัน ${p.code}" / "ยกเลิก ${p.code}"`;
             }
-            await respond(msg);
+            const qr = r.pendings.length
+              ? quickReply(
+                  r.pendings.flatMap((p) => [
+                    { label: `✅ ยืนยัน ${p.code}`, text: `ยืนยัน ${p.code}` },
+                    { label: `✖️ ยกเลิก ${p.code}`, text: `ยกเลิก ${p.code}` },
+                  ]),
+                )
+              : defaultQR;
+            await respond(msg, qr);
           } catch (e) {
             await respond(`⚠️ ${(e as Error).message}`);
           }
