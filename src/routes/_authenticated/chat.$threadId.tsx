@@ -135,7 +135,7 @@ function ChatWindow({ threadId }: { threadId: string }) {
             rows={1}
             className="max-h-40 min-h-11 resize-none"
           />
-          <Button size="icon" className="size-11 shrink-0" onClick={submit} disabled={!text.trim() || !!optimistic} aria-label="ส่ง">
+          <Button size="icon" className="size-11 shrink-0" onClick={() => submit()} disabled={!text.trim() || !!optimistic} aria-label="ส่ง">
             <Send className="size-4" />
           </Button>
         </div>
