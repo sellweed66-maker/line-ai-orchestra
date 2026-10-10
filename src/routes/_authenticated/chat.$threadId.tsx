@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowLeft, Bot, ChevronDown, Loader2, Send } from "lucid
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { resolvePending, sendChat } from "@/lib/hub.functions";
+import { QUICK_COMMANDS } from "@/lib/line-flex";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
