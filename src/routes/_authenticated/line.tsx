@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { saveLine, sendLineTest } from "@/lib/hub.functions";
+import { getIngestKey, saveLine, sendLineTest } from "@/lib/hub.functions";
 import { useAuthUser } from "@/hooks/use-hub";
 import { Page, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ function LinePage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={async () => {
+
             try {
               await save({ data: { token: token || undefined, secret: secret || undefined, target_id: target, owner_line_ids: owners.split(/\s+/).filter(Boolean) } });
               setToken(""); setSecret(""); toast.success("บันทึกแล้ว"); qc.invalidateQueries({ queryKey: ["line"] });
