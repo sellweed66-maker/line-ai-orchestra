@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowLeft, Bot, ChevronDown, Loader2, Send } from "lucid
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { resolvePending, sendChat } from "@/lib/hub.functions";
+import { QUICK_COMMANDS } from "@/lib/line-flex";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -51,8 +52,8 @@ function ChatWindow({ threadId }: { threadId: string }) {
   useEffect(() => ref.current?.focus(), []);
   useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [msgs, optimistic]);
 
-  const submit = async () => {
-    const t = text.trim();
+  const submit = async (override?: string) => {
+    const t = (override ?? text).trim();
     if (!t || optimistic) return;
     setText("");
     setOptimistic(t);
@@ -107,6 +108,18 @@ function ChatWindow({ threadId }: { threadId: string }) {
         </div>
       </div>
       <div className="border-t border-border p-3">
+        <div className="mx-auto mb-2 flex max-w-3xl gap-2 overflow-x-auto pb-1">
+          {QUICK_COMMANDS.map((c) => (
+            <button
+              key={c.label}
+              onClick={() => submit(c.text)}
+              disabled={!!optimistic}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <Textarea
             ref={ref}
@@ -122,7 +135,7 @@ function ChatWindow({ threadId }: { threadId: string }) {
             rows={1}
             className="max-h-40 min-h-11 resize-none"
           />
-          <Button size="icon" className="size-11 shrink-0" onClick={submit} disabled={!text.trim() || !!optimistic} aria-label="ส่ง">
+          <Button size="icon" className="size-11 shrink-0" onClick={() => submit()} disabled={!text.trim() || !!optimistic} aria-label="ส่ง">
             <Send className="size-4" />
           </Button>
         </div>

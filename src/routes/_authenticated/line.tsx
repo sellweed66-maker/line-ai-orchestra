@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { saveLine, sendLineTest } from "@/lib/hub.functions";
+import { getIngestKey, saveLine, sendLineTest } from "@/lib/hub.functions";
 import { useAuthUser } from "@/hooks/use-hub";
 import { Page, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ function LinePage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={async () => {
+
             try {
               await save({ data: { token: token || undefined, secret: secret || undefined, target_id: target, owner_line_ids: owners.split(/\s+/).filter(Boolean) } });
               setToken(""); setSecret(""); toast.success("บันทึกแล้ว"); qc.invalidateQueries({ queryKey: ["line"] });
@@ -68,6 +69,52 @@ function LinePage() {
           <Button variant="outline" onClick={async () => { const r = await test({ data: { kind: "report" } }); r.ok ? toast.success(r.message) : toast.error(r.message); }}>ส่งรายงานตัวอย่าง</Button>
         </div>
       </div>
+      <IngestCard userId={user.id} />
     </Page>
+  );
+}
+
+function IngestCard({ userId }: { userId: string }) {
+  const getKey = useServerFn(getIngestKey);
+  const [key, setKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const url = typeof window !== "undefined" ? `${window.location.origin}/api/public/bill/${userId}` : "";
+  const load = async (rotate = false) => {
+    setBusy(true);
+    try {
+      const r = await getKey({ data: { rotate } });
+      setKey(r.key);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+    setBusy(false);
+  };
+  const copy = (v: string) => { navigator.clipboard.writeText(v); toast.success("คัดลอกแล้ว"); };
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <div>
+        <h2 className="font-medium">รับบิลอัตโนมัติจากแอพหน้าร้าน</h2>
+        <p className="text-sm text-muted-foreground">ตั้งให้แอพหน้าร้าน (เช่น ObwangnoiOG) ส่งบิลมาที่ลิงก์นี้ ระบบจะส่งการ์ดใบเสร็จเข้ากลุ่ม LINE ทันที</p>
+      </div>
+      <div className="space-y-1.5">
+        <Label>Webhook URL สำหรับรับบิล</Label>
+        <div className="flex gap-2">
+          <Input readOnly value={url} />
+          <Button variant="outline" size="icon" onClick={() => copy(url)} aria-label="คัดลอก"><Copy className="size-4" /></Button>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label>รหัสลับ (Ingest Key)</Label>
+        <div className="flex flex-wrap gap-2">
+          <Input readOnly value={key ?? "••••••••••••••••"} className="max-w-sm" type={key ? "text" : "password"} />
+          {key && <Button variant="outline" size="icon" onClick={() => copy(key)} aria-label="คัดลอก"><Copy className="size-4" /></Button>}
+          <Button variant="outline" disabled={busy} onClick={() => load(false)}>{key ? "แสดงอีกครั้ง" : "สร้าง / แสดงรหัส"}</Button>
+          <Button variant="outline" disabled={busy} onClick={() => load(true)}>เปลี่ยนรหัสใหม่</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          แอพหน้าร้านต้องแนบ header <code>x-hub-signature</code> = hex(HMAC-SHA256(รหัสลับ, เนื้อ JSON)) ทุกครั้งที่ส่งบิล
+        </p>
+      </div>
+    </div>
   );
 }

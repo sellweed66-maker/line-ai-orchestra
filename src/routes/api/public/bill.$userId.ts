@@ -65,21 +65,17 @@ export const Route = createFileRoute("/api/public/bill/$userId")({
           return Response.json({ ok: false, error: "line not configured" }, { status: 409 });
         }
         const total = b.total !== undefined ? fmtMoney(b.total) : undefined;
-        const flex = {
-          type: "flex",
-          altText: `🧾 ${cmd}${total ? ` ${total}` : ""}`,
-          contents: buildReceiptFlex({
-            title: `🧾 ${label}`,
-            storeName: st?.store_name ?? undefined,
-            badge: label,
-            subtitle: [b.branch, b.customer].filter(Boolean).join(" · ") || undefined,
-            billNo: b.bill_no,
-            items: b.items,
-            total,
-            note: b.note,
-            time: b.time,
-          }),
-        };
+        const flex = buildReceiptFlex({
+          title: `🧾 ${label}`,
+          storeName: st?.store_name ?? undefined,
+          badge: label,
+          subtitle: [b.branch, b.customer].filter(Boolean).join(" · ") || undefined,
+          billNo: b.bill_no,
+          items: b.items,
+          total,
+          note: b.note,
+          time: b.time,
+        });
         const fallback = [`🧾 ${cmd}`, b.branch, ...(b.items ?? []).map((i) => `• ${i.name}${i.qty ? ` × ${i.qty}` : ""}`), total ? `รวม ${total}` : ""].filter(Boolean).join("\n");
         try {
           await linePushFlex(token, ls.target_id, flex, fallback);
