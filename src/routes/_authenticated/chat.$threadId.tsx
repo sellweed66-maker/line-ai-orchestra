@@ -52,8 +52,8 @@ function ChatWindow({ threadId }: { threadId: string }) {
   useEffect(() => ref.current?.focus(), []);
   useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [msgs, optimistic]);
 
-  const submit = async () => {
-    const t = text.trim();
+  const submit = async (override?: string) => {
+    const t = (override ?? text).trim();
     if (!t || optimistic) return;
     setText("");
     setOptimistic(t);
@@ -108,6 +108,18 @@ function ChatWindow({ threadId }: { threadId: string }) {
         </div>
       </div>
       <div className="border-t border-border p-3">
+        <div className="mx-auto mb-2 flex max-w-3xl gap-2 overflow-x-auto pb-1">
+          {QUICK_COMMANDS.map((c) => (
+            <button
+              key={c.label}
+              onClick={() => submit(c.text)}
+              disabled={!!optimistic}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
         <div className="mx-auto flex max-w-3xl items-end gap-2">
           <Textarea
             ref={ref}
