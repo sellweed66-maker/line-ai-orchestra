@@ -3,87 +3,109 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { PROVIDERS, PROVIDER_ORDER, type ProviderId } from "@/lib/providers";
+import { PROVIDERS, detectProvider } from "@/lib/providers";
 
 const providerEnum = z.enum(["gemini", "groq", "openrouter"]);
 
-/* ---------- AI providers ---------- */
+/* ---------- AI providers (unlimited keys, any provider repeated) ---------- */
 
 export const ensureProviders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data } = await supabase.from("ai_providers").select("provider").eq("user_id", userId);
-    const have = new Set((data ?? []).map((r) => r.provider));
-    const missing = PROVIDER_ORDER.filter((p) => !have.has(p)).map((p) => ({
-      user_id: userId,
-      provider: p,
-      priority: PROVIDER_ORDER.indexOf(p),
-      model: PROVIDERS[p].defaultModel,
-    }));
-    if (missing.length) {
-      const { error } = await supabase.from("ai_providers").insert(missing);
-      if (error) throw new Error(error.message);
-    }
-    return { ok: true };
+  .handler(async () => ({ ok: true }));
+
+export const addProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    z.object({ apiKey: z.string().trim().min(8).max(500), label: z.string().trim().max(60).optional(), provider: providerEnum.optional() }),
+  )
+  .handler(async ({ data, context }) => {
+    const provider = data.provider ?? detectProvider(data.apiKey);
+    if (!provider) throw new Error("ระบุค่ายจาก Key ไม่ได้ — กรุณาเลือกค่าย");
+    const { getAdmin, setSecret, hint } = await import("@/lib/server/secrets.server");
+    const { data: last } = await context.supabase
+      .from("ai_providers").select("priority").eq("user_id", context.userId).order("priority", { ascending: false }).limit(1);
+    const { data: same } = await context.supabase.from("ai_providers").select("id").eq("user_id", context.userId).eq("provider", provider);
+    const label = data.label || `${PROVIDERS[provider].label}${same && same.length ? ` #${same.length + 1}` : ""}`;
+    const { data: ins, error } = await context.supabase
+      .from("ai_providers")
+      .insert({
+        user_id: context.userId, provider, label, model: PROVIDERS[provider].defaultModel,
+        priority: (last?.[0]?.priority ?? -1) + 1, has_key: true, key_hint: hint(data.apiKey), enabled: true,
+      })
+      .select("id").single();
+    if (error) throw new Error(error.message);
+    await setSecret(await getAdmin(), context.userId, "ai", ins.id, data.apiKey);
+    return { id: ins.id, provider, label };
   });
 
 export const saveProvider = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
     z.object({
-      provider: providerEnum,
+      id: z.string().uuid(),
       apiKey: z.string().max(500).optional(),
-      clearKey: z.boolean().optional(),
-      enabled: z.boolean(),
-      model: z.string().min(1).max(200),
+      enabled: z.boolean().optional(),
+      label: z.string().trim().max(60).optional(),
     }),
   )
   .handler(async ({ data, context }) => {
     const { getAdmin, setSecret, deleteSecret, hint } = await import("@/lib/server/secrets.server");
-    const admin = await getAdmin();
-    const patch: Record<string, unknown> = { enabled: data.enabled, model: data.model.trim() };
-    if (data.apiKey && data.apiKey.trim()) {
+    const { data: row } = await context.supabase.from("ai_providers").select("id, provider").eq("id", data.id).maybeSingle();
+    if (!row) throw new Error("ไม่พบรายการ");
+    const patch: Record<string, unknown> = {};
+    if (data.enabled !== undefined) patch.enabled = data.enabled;
+    if (data.label !== undefined) patch.label = data.label;
+    if (data.apiKey?.trim()) {
       const k = data.apiKey.trim();
-      await setSecret(admin, context.userId, "ai", data.provider, k);
-      Object.assign(patch, { has_key: true, key_hint: hint(k), last_status: "unknown", last_error: null });
-    } else if (data.clearKey) {
-      await deleteSecret(admin, context.userId, "ai", data.provider);
-      Object.assign(patch, { has_key: false, key_hint: null, last_status: "unknown" });
+      const admin = await getAdmin();
+      await setSecret(admin, context.userId, "ai", row.id, k);
+      await deleteSecret(admin, context.userId, "ai", row.provider); // drop legacy slot
+      Object.assign(patch, { has_key: true, key_hint: hint(k), last_status: "unknown", last_error: null, cooldown_until: null });
     }
-    const { error } = await context.supabase
-      .from("ai_providers")
-      .update(patch as never)
-      .eq("user_id", context.userId)
-      .eq("provider", data.provider);
+    const { error } = await context.supabase.from("ai_providers").update(patch as never).eq("id", row.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { getAdmin, deleteSecret } = await import("@/lib/server/secrets.server");
+    const { data: row } = await context.supabase.from("ai_providers").select("id, provider").eq("id", data.id).maybeSingle();
+    if (!row) throw new Error("ไม่พบรายการ");
+    const admin = await getAdmin();
+    await deleteSecret(admin, context.userId, "ai", row.id);
+    const { data: others } = await context.supabase.from("ai_providers").select("id").eq("provider", row.provider).neq("id", row.id);
+    if (!others?.length) await deleteSecret(admin, context.userId, "ai", row.provider);
+    const { error } = await context.supabase.from("ai_providers").delete().eq("id", row.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const reorderProviders = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ order: z.array(providerEnum).length(3) }))
+  .inputValidator(z.object({ order: z.array(z.string().uuid()).max(100) }))
   .handler(async ({ data, context }) => {
-    for (const [i, p] of data.order.entries()) {
-      await context.supabase.from("ai_providers").update({ priority: i }).eq("user_id", context.userId).eq("provider", p);
+    for (const [i, id] of data.order.entries()) {
+      await context.supabase.from("ai_providers").update({ priority: i }).eq("user_id", context.userId).eq("id", id);
     }
     return { ok: true };
   });
 
 export const testProvider = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ provider: providerEnum }))
+  .inputValidator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data, context }) => {
     const { getAdmin } = await import("@/lib/server/secrets.server");
     const { runWithFallback } = await import("@/lib/server/ai-engine.server");
     const { generateText } = await import("ai");
-    const admin = await getAdmin();
     try {
       const { result } = await runWithFallback(
-        admin,
+        await getAdmin(),
         context.userId,
         async (model) => (await generateText({ model, prompt: "ตอบกลับคำเดียวว่า OK", maxRetries: 0 })).text,
-        data.provider as ProviderId,
+        data.id,
       );
       return { ok: true, message: `เชื่อมต่อสำเร็จ: ${result.slice(0, 60)}` };
     } catch (e) {
