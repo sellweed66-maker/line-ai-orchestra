@@ -16,10 +16,12 @@ export type Database = {
     Tables: {
       ai_providers: {
         Row: {
+          cooldown_until: string | null
           enabled: boolean
           has_key: boolean
           id: string
           key_hint: string | null
+          label: string
           last_error: string | null
           last_status: string
           last_used_at: string | null
@@ -30,10 +32,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cooldown_until?: string | null
           enabled?: boolean
           has_key?: boolean
           id?: string
           key_hint?: string | null
+          label?: string
           last_error?: string | null
           last_status?: string
           last_used_at?: string | null
@@ -44,10 +48,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cooldown_until?: string | null
           enabled?: boolean
           has_key?: boolean
           id?: string
           key_hint?: string | null
+          label?: string
           last_error?: string | null
           last_status?: string
           last_used_at?: string | null
