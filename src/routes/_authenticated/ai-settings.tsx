@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { addProvider, deleteProvider, reorderProviders, saveProvider, testProvider } from "@/lib/hub.functions";
+import { addProvider, deleteProvider, diagnoseKeyError, reorderProviders, saveProvider, testProvider } from "@/lib/hub.functions";
 import { PROVIDERS, PROVIDER_ORDER, detectProvider, type ProviderId } from "@/lib/providers";
 import { Page, PageHeader, StatusDot } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,10 @@ function ProviderCard({ row, index, onMove }: { row: Row; index: number; onMove:
   const save = useServerFn(saveProvider);
   const del = useServerFn(deleteProvider);
   const test = useServerFn(testProvider);
+  const diagnose = useServerFn(diagnoseKeyError);
+  const [lastErr, setLastErr] = useState<string | null>(null);
+  const [diag, setDiag] = useState<string | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
   const qc = useQueryClient();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,13 +143,34 @@ function ProviderCard({ row, index, onMove }: { row: Row; index: number; onMove:
         <Button size="icon" variant="ghost" onClick={() => onMove(index, 1)} aria-label="ลง"><ArrowDown className="size-4" /></Button>
         <Switch checked={row.enabled} onCheckedChange={(v) => run(() => save({ data: { id: row.id, enabled: v } }))} />
       </div>
-      {row.last_error && row.last_status === "error" && <p className="mt-2 text-xs text-destructive">{row.last_error}</p>}
+      {(lastErr || (row.last_error && row.last_status === "error")) && (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-destructive">{lastErr || row.last_error}</p>
+          <Button size="sm" variant="outline" disabled={diagBusy} onClick={async () => {
+            setDiagBusy(true); setDiag(null);
+            try {
+              const r = await diagnose({ data: { provider: cfg?.label ?? row.provider, model: row.model, error: (lastErr || row.last_error || "").slice(0, 4000) } });
+              setDiag(r.text);
+            } catch (e) { toast.error((e as Error).message); }
+            setDiagBusy(false);
+          }}>{diagBusy ? "กำลังวิเคราะห์..." : "วิเคราะห์ข้อผิดพลาดด้วย AI"}</Button>
+          {diag && (
+            <div className="rounded-lg border border-border bg-muted p-3 text-sm">
+              <p className="whitespace-pre-wrap">{diag}</p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(diag); toast.success("คัดลอกแล้ว"); }}>คัดลอก</Button>
+                <Button size="sm" variant="ghost" onClick={() => setDiag(null)}>ปิด</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Input className="h-8 min-w-0 flex-1" type="password" placeholder="เปลี่ยน Key (วางใหม่)" value={key} onChange={(e) => setKey(e.target.value)} />
         {key.trim() && <Button size="sm" disabled={busy} onClick={() => run(async () => { await save({ data: { id: row.id, apiKey: key } }); setKey(""); toast.success("บันทึกแล้ว"); })}>บันทึก</Button>}
         <Button size="sm" variant="outline" disabled={busy || !row.has_key} onClick={() => run(async () => {
           const r = await test({ data: { id: row.id } });
-          r.ok ? toast.success(r.message) : toast.error(r.message);
+          if (r.ok) { setLastErr(null); toast.success(r.message); } else { setLastErr(r.message); toast.error(r.message); }
         })}>ทดสอบ</Button>
         <Button size="sm" variant="ghost" disabled={busy} aria-label="ลบ" onClick={() => {
           if (confirm(`ลบ ${row.label || cfg?.label}?`)) run(() => del({ data: { id: row.id } }));
